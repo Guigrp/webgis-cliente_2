@@ -154,7 +154,7 @@
 
                 camadaGeoJsonFazendas = L.geoJSON(data, {
                     pane: 'pane_ada',
-                    style: { color: 'blue', weight: 2, fillOpacity: 0.4 },
+                    style: { color: 'blue', weight: 1, fillOpacity: 0 },
                     onEachFeature: function (feature, layer) {
                         let codFazenda = String(feature.properties.FAZENDA || "Sem código");
                         layer.bindPopup("<b>Fazenda</b><br>Código: " + codFazenda);
