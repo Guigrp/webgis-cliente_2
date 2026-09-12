@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>WebGIS - Painel Interativo</title>
+    <title>WebGIS - Painel Interativo Numero 1</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; }
@@ -21,16 +21,16 @@
 <body>
 
     <div id="sidebar">
-        <h2>Painel do Projeto</h2>
+        <h2>Painel do Projeto Modelo</h2>
         <div class="search-container">
-            <input type="text" id="search-box" placeholder="Código da fazenda (ex: FZ-123)">
+            <input type="text" id="search-box" placeholder="Código da Fazenda (ex: 1003)">
             <button id="search-btn">Buscar</button>
         </div>
 
         <div class="layer-group">
-            <strong>LIMITES DO PROJETO</strong>
-            <label class="layer-item"><input type="checkbox" id="check-aid" checked> <div class="legend-color" style="background: rgba(255,0,0,0.2); border-color: red;"></div> Área de Influência Direta</label>
-            <label class="layer-item"><input type="checkbox" id="check-ada" checked> <div class="legend-color" style="background: rgba(0,0,255,0.4); border-color: blue;"></div> Área Diretamente Afetada</label>
+            <strong>LIMITES DO PROJETO ANALISADO</strong>
+            <label class="layer-item"><input type="checkbox" id="check-aid" checked> <div class="legend-color" style="background: rgba(255,0,0,0.2); border-color: red;"></div> Área de Influência Direta (AID)</label>
+            <label class="layer-item"><input type="checkbox" id="check-ada" checked> <div class="legend-color" style="background: rgba(0,0,255,0.4); border-color: blue;"></div> Área Diretamente Afetada (ADA)</label>
         </div>
     </div>
 
@@ -38,7 +38,7 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Centraliza inicialmente em Barbacena
+        // Centraliza inicialmente na AID (posteriormente colocar para centralizar na coordenada da AID do projeto)
         var map = L.map('map', { zoomControl: false }).setView([-21.225, -43.767], 10);
         L.control.zoom({ position: 'topright' }).addTo(map);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
@@ -47,7 +47,7 @@
         var camadaAID = L.layerGroup().addTo(map);
         var camadaADA = L.layerGroup().addTo(map);
 
-        // 1. Carrega o GeoJSON da Área de Influência Direta
+        // 1. Carrega o GeoJSON da Área de Influência Direta (AID)
         fetch('dados/influencia.geojson')
             .then(res => res.json())
             .then(data => {
@@ -57,7 +57,7 @@
             })
             .catch(err => console.error("Erro ao carregar Área de Influência:", err));
 
-        // 2. Carrega o GeoJSON das Fazendas (Área Diretamente Afetada)
+        // 2. Carrega o GeoJSON das Fazendas (ADA)
         fetch('dados/fazendas.geojson')
             .then(res => res.json())
             .then(data => {
@@ -65,12 +65,12 @@
                     style: { color: 'blue', weight: 2, fillOpacity: 0.4 },
                     onEachFeature: function (feature, layer) {
                         // Mude 'codigo' para o nome exato da coluna na sua tabela de atributos do QGIS
-                        let cod = feature.properties.codigo || "Sem código"; 
-                        layer.bindPopup("<b>Fazenda</b><br>Código: " + cod);
+                        let FAZENDA = feature.properties.codigo || "Sem código"; 
+                        layer.bindPopup("<b>Fazenda</b><br>Código: " + FAZENDA);
                     }
                 }).addTo(camadaADA);
                 
-                // Dá zoom automático para enquadrar todas as fazendas carregadas
+                // Dá zoom automático para enquadrar todas as fazendas carregadas (POSSO USAR O COMANDO ABAIXO PARA ELE AO ABRIR CENTRALIZAR NA ADA DO PROJETO)
                 map.fitBounds(fazendasLayer.getBounds());
             })
             .catch(err => console.error("Erro ao carregar Fazendas:", err));
