@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>WebGIS - Projeto Interativo (QGIS)</title>
+    <title>Projeto Interativo (QGIS)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; }
@@ -144,7 +144,7 @@
             .then(data => {
                 var influenciaLayer = L.geoJSON(data, {
                     pane: 'pane_aid',
-                    style: { color: 'red', weight: 2, fillOpacity: 0.1 }
+                    style: { color: 'red', weight: 2, fillOpacity: 0 }
                 }).addTo(camadaAID);
                 map.fitBounds(influenciaLayer.getBounds());
             })
@@ -170,7 +170,7 @@
 
                         // Pop-up formatado conforme solicitado
                         let conteudoPopup = `
-                            <b>NOME:</b> ${nomeFazenda}<br>
+                            <b>Nome:</b> ${nomeFazenda}<br>
                             <b>Fazenda:</b> ${codFazenda}<br>
                             <b>Área:</b> ${areaFazenda}
                         `;
