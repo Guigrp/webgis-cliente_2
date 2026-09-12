@@ -72,6 +72,11 @@
         .btn-global-container { display: flex; gap: 5px; margin-top: 8px; margin-bottom: 8px; }
         .btn-global { background: #f0f0f0; border: 1px solid #ccc; padding: 3px 8px; font-size: 11px; border-radius: 3px; cursor: pointer; }
         .btn-global:hover { background: #e0e0e0; }
+
+        /* Tabela do Popup */
+        .popup-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .popup-table th, .popup-table td { border: 1px solid #ddd; padding: 4px; text-align: left; }
+        .popup-table th { background-color: #f2f2f2; }
     </style>
 </head>
 <body>
@@ -122,9 +127,9 @@
             </div>
         </div>
 
-        <!-- Camada de Conservacao (AID) -->
+        <!-- Camada de Conservacao (UC) -->
         <div class="layer-group">
-            <strong> UNIDADES DE CONSERVAÇÃO</strong>
+            <strong>UNIDADES DE CONSERVAÇÃO</strong>
             <label class="layer-item"><input type="checkbox" id="check-conservacao" checked> <div class="legend-color" style="background: rgba(60, 179, 113, 0.3); border-color: MediumSeaGreen;"></div> Unidades de Conservação (UC)</label>
         </div>     
     </div>
@@ -149,7 +154,6 @@
         var camadaADA = L.layerGroup().addTo(map);
         var camadaUC = L.layerGroup().addTo(map);
 
-        
         var fazendasLayersObj = {};
         var camadaGeoJsonFazendas;
 
@@ -165,7 +169,7 @@
             })
             .catch(err => console.error("Erro ao carregar AID:", err));
 
-        // 2. Carrega Fazendas (ADA) sem preenchimento e com pop-up personalizado
+        // 2. Carrega Fazendas (ADA)
         fetch('dados/fazendas.geojson')
             .then(res => res.json())
             .then(data => {
@@ -174,7 +178,7 @@
 
                 camadaGeoJsonFazendas = L.geoJSON(data, {
                     pane: 'pane_ada',
-                    style: { color: 'Breakdown', weight: 2, fillOpacity: 0 },
+                    style: { color: '#FF8C00', weight: 2, fillOpacity: 0 }, // Cor corrigida aqui
                     onEachFeature: function (feature, layer) {
                         let props = feature.properties;
                         
@@ -189,7 +193,6 @@
                         `;
                         layer.bindPopup(conteudoPopup);
 
-                        // Zoom por duplo clique direto no mapa
                         layer.on('dblclick', function(e) {
                             map.fitBounds(e.target.getBounds(), { padding: [50, 50], maxZoom: 16 });
                             layer.openPopup();
@@ -197,22 +200,19 @@
 
                         fazendasLayersObj[codFazenda] = layer;
 
-                        // Criação do item na lista lateral
                         var divItem = document.createElement('div');
                         divItem.className = 'sub-layer-item';
                         divItem.title = "Dê duplo clique para dar zoom na fazenda";
                         divItem.innerHTML = `
                             <input type="checkbox" class="check-fazenda-individual" data-fazenda="${codFazenda}" checked>
-                            <div class="legend-color" style="background: transparent; border-color: Breakdown; width: 10px; height: 10px;"></div>
+                            <div class="legend-color" style="background: transparent; border-color: #FF8C00; width: 10px; height: 10px;"></div>
                             <span>Fazenda ${codFazenda}</span>
                         `;
 
-                        // Evita conflito para que o clique duplo no texto não altere o checkbox acidentalmente
                         divItem.querySelector('input').addEventListener('click', function(e) {
                             e.stopPropagation();
                         });
 
-                        // Adiciona o evento de duplo clique no item do menu lateral para dar zoom
                         divItem.addEventListener('dblclick', function(e) {
                             e.preventDefault();
                             var camadaAlvo = fazendasLayersObj[codFazenda];
@@ -255,20 +255,7 @@
             }
         });
 
-        // X. Carrega UCs
-        fetch('dados/CONSERVACAO.geojson')
-            .then(res => res.json())
-            .then(data => {
-                var influenciaLayer = L.geoJSON(data, {
-                    pane: 'pane_uc',
-                    style: { color: 'MediumSeaGreen', weight: 2, fillOpacity: 0.3 }
-                }).addTo(camadaUC);
-                map.fitBounds(influenciaLayer.getBounds());
-            })
-            .catch(err => console.error("Erro ao carregar UC:", err));
-
-        
-        // 4. Controle geral do menu lateral (esconder/mostrar painel inteiro)
+        // 4. Controle geral do menu lateral
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebar-toggle');
         const btnHide = document.getElementById('btn-hide');
@@ -277,19 +264,34 @@
         sidebarToggle.addEventListener('click', toggleSidebar);
         btnHide.addEventListener('click', toggleSidebar);
 
-        // X. Carrega UCs
+        // 5. Carrega UCs (Corrigido para exibir todos os atributos)
         fetch('dados/CONSERVACAO.geojson')
             .then(res => res.json())
             .then(data => {
-                var influenciaLayer = L.geoJSON(data, {
+                var ucLayer = L.geoJSON(data, {
                     pane: 'pane_uc',
-                    style: { color: 'MediumSeaGreen', weight: 2, fillOpacity: 0.3 }
+                    style: { color: 'MediumSeaGreen', weight: 2, fillOpacity: 0.3 },
+                    onEachFeature: function(feature, layer) {
+                        if (feature.properties) {
+                            let popupContent = '<b>Detalhes da Unidade de Conservação:</b><br>';
+                            popupContent += '<div style="max-height: 200px; overflow-y: auto;">';
+                            popupContent += '<table class="popup-table">';
+                            
+                            // Itera sobre todos os atributos do GeoJSON dinamicamente
+                            for (let key in feature.properties) {
+                                popupContent += `<tr><th>${key}</th><td>${feature.properties[key]}</td></tr>`;
+                            }
+                            
+                            popupContent += '</table></div>';
+                            layer.bindPopup(popupContent);
+                        }
+                    }
                 }).addTo(camadaUC);
-                map.fitBounds(influenciaLayer.getBounds());
+                // Opcional: map.fitBounds(ucLayer.getBounds()); removido para não sobrepor o limite inicial da AID
             })
             .catch(err => console.error("Erro ao carregar UC:", err));
 
-        // 5. Lógica Global e Pesquisa por Código
+        // 6. Lógica Global e Pesquisa por Código
         document.getElementById('check-ada-global').addEventListener('change', function() {
             let statusGlobal = this.checked;
             document.querySelectorAll('.check-fazenda-individual').forEach(function(cb) {
@@ -327,7 +329,7 @@
             }
         });
 
-        // 6. Pesquisa por Coordenadas (Latitude, Longitude)
+        // 7. Pesquisa por Coordenadas
         document.getElementById('coord-btn').addEventListener('click', function() {
             let coordTexto = document.getElementById('coord-box').value.trim();
             if(coordTexto === "") { alert("Digite a latitude e longitude (ex: -21.22, -43.76)"); return; }
@@ -348,8 +350,14 @@
             }
         });
 
+        // 8. Eventos de Ligar/Desligar as Camadas Globais (AID e UC)
         document.getElementById('check-aid').addEventListener('change', function() {
             if(this.checked) map.addLayer(camadaAID); else map.removeLayer(camadaAID);
+        });
+
+        // Este é o evento que faltava para a Unidade de Conservação funcionar!
+        document.getElementById('check-conservacao').addEventListener('change', function() {
+            if(this.checked) map.addLayer(camadaUC); else map.removeLayer(camadaUC);
         });
     </script>
 </body>
