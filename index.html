@@ -159,6 +159,10 @@
                         let codFazenda = String(feature.properties.FAZENDA || "Sem código");
                         layer.bindPopup("<b>Fazenda</b><br>Código: " + codFazenda);
                         fazendasLayersObj[codFazenda] = layer;
+                        
+                        let AREA = String(feature.properties.AREA || " - ");
+                        layer.bindPopup("<b>AREA</b><br>Área: " + AREA);
+                        fazendasLayersObj[AREA] = layer;
 
                         var divItem = document.createElement('div');
                         divItem.className = 'sub-layer-item';
