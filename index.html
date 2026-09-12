@@ -65,7 +65,7 @@
                     style: { color: 'blue', weight: 2, fillOpacity: 0.4 },
                     onEachFeature: function (feature, layer) {
                         // Mude 'codigo' para o nome exato da coluna na sua tabela de atributos do QGIS
-                        let FAZENDA = feature.properties.codigo || "Sem código"; 
+                        let FAZENDA = feature.properties.fazenda || "Sem código"; 
                         layer.bindPopup("<b>Fazenda</b><br>Código: " + FAZENDA);
                     }
                 }).addTo(camadaADA);
