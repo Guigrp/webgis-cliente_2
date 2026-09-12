@@ -7,13 +7,37 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; }
         #map { height: 100%; width: 100%; z-index: 1; }
+        
+        /* Menu Lateral com Transição para Recolher/Expandir */
         #sidebar { 
             position: absolute; top: 20px; left: 20px; width: 340px; max-height: 90vh; 
             background: rgba(255, 255, 255, 0.95); padding: 20px; z-index: 1000; 
-            border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); overflow-y: auto; 
+            border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); overflow-y: auto;
+            transition: transform 0.3s ease, opacity 0.3s ease;
         }
-        h2 { margin-top: 0; font-size: 18px; color: #333; border-bottom: 2px solid #0078A8; padding-bottom: 10px; }
-        .search-container { display: flex; gap: 5px; margin-bottom: 15px; }
+        
+        /* Classe aplicada quando o menu estiver recolhido */
+        #sidebar.collapsed {
+            transform: translateX(-370px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Botão para abrir/fechar o menu flutuante na tela */
+        #sidebar-toggle {
+            position: absolute; top: 20px; left: 20px; z-index: 999;
+            background: #0078A8; color: white; border: none; border-radius: 4px;
+            width: 40px; height: 40px; font-size: 18px; cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center;
+            transition: left 0.3s ease;
+        }
+        
+        .header-menu { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0078A8; padding-bottom: 10px; margin-top: 0; }
+        h2 { margin: 0; font-size: 18px; color: #333; }
+        .btn-close-menu { background: none; border: none; font-size: 18px; cursor: pointer; color: #666; }
+        .btn-close-menu:hover { color: #000; }
+
+        .search-container { display: flex; gap: 5px; margin-bottom: 15px; margin-top: 15px; }
         #search-box { flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
         #search-btn { padding: 8px 12px; background: #0078A8; color: white; border: none; border-radius: 4px; cursor: pointer; }
         .layer-group { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
@@ -21,7 +45,6 @@
         .layer-item { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 5px; }
         .legend-color { width: 14px; height: 14px; border: 1px solid #999; border-radius: 3px; }
         
-        /* Estilo da árvore de subgrupos de fazendas */
         #lista-fazendas { margin-top: 5px; padding-left: 15px; border-left: 2px solid #ddd; max-height: 200px; overflow-y: auto; }
         .sub-layer-item { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 4px; }
         .btn-global { background: #f0f0f0; border: 1px solid #ccc; padding: 3px 8px; font-size: 11px; border-radius: 3px; cursor: pointer; margin-bottom: 5px; }
@@ -30,8 +53,15 @@
 </head>
 <body>
 
+    <!-- Botão flutuante para reabrir o menu quando ele estiver recolhido -->
+    <button id="sidebar-toggle" title="Abrir/Fechar Menu">≡</button>
+
     <div id="sidebar">
-        <h2>Painel do Projeto Modelo Categorizado</h2>
+        <div class="header-menu">
+            <h2>Painel do Projeto</h2>
+            <button class="btn-close-menu" id="btn-hide" title="Recolher Menu">✕</button>
+        </div>
+
         <div class="search-container">
             <input type="text" id="search-box" placeholder="Código da Fazenda (ex: 1003)">
             <button id="search-btn">Buscar</button>
@@ -52,7 +82,6 @@
             </div>
             <label class="layer-item" style="margin-top: 8px;"><input type="checkbox" id="check-ada-global" checked> <strong>Exibir Todas as Fazendas</strong></label>
             
-            <!-- Subgrupos gerados dinamicamente baseados no arquivo -->
             <div id="lista-fazendas">
                 <span style="font-size: 12px; color: #888;">Carregando fazendas...</span>
             </div>
@@ -65,9 +94,8 @@
     <script>
         var map = L.map('map', { zoomControl: false }).setView([-21.225, -43.767], 10);
         L.control.zoom({ position: 'topright' }).addTo(map);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/*.png', { maxZoom: 19 }).addTo(map);
 
-        // Painéis para controle de ordem (Z-index)
         map.createPane('pane_aid');
         map.getPane('pane_aid').style.zIndex = 400;
         map.createPane('pane_ada');
@@ -76,11 +104,10 @@
         var camadaAID = L.layerGroup().addTo(map);
         var camadaADA = L.layerGroup().addTo(map);
         
-        // Objeto para guardar as referências individuais de cada fazenda (para ligar/desligar por ID)
         var fazendasLayersObj = {};
         var camadaGeoJsonFazendas;
 
-        // 1. Carrega Área de Influência Direta (AID)
+        // 1. Carrega AID
         fetch('dados/influencia.geojson')
             .then(res => res.json())
             .then(data => {
@@ -92,12 +119,12 @@
             })
             .catch(err => console.error("Erro ao carregar AID:", err));
 
-        // 2. Carrega Fazendas (ADA) e monta o menu lateral automaticamente
+        // 2. Carrega Fazendas e monta a lista de subgrupos
         fetch('dados/fazendas.geojson')
             .then(res => res.json())
             .then(data => {
                 var containerSubgrupos = document.getElementById('lista-fazendas');
-                containerSubgrupos.innerHTML = ""; // Limpa o texto de carregando
+                containerSubgrupos.innerHTML = "";
 
                 camadaGeoJsonFazendas = L.geoJSON(data, {
                     pane: 'pane_ada',
@@ -105,11 +132,8 @@
                     onEachFeature: function (feature, layer) {
                         let codFazenda = String(feature.properties.FAZENDA || "Sem código");
                         layer.bindPopup("<b>Fazenda</b><br>Código: " + codFazenda);
-
-                        // Salva a camada individual no dicionário usando o código como chave
                         fazendasLayersObj[codFazenda] = layer;
 
-                        // Cria dinamicamente a caixinha (checkbox) de cada fazenda no menu lateral
                         var divItem = document.createElement('div');
                         divItem.className = 'sub-layer-item';
                         divItem.innerHTML = `
@@ -121,37 +145,41 @@
                     }
                 }).addTo(camadaADA);
 
-                // Ativa os eventos dos novos checkboxes gerados dinamicamente
                 document.querySelectorAll('.check-fazenda-individual').forEach(function(checkbox) {
                     checkbox.addEventListener('change', function() {
                         let idFazenda = this.getAttribute('data-fazenda');
                         let camadaAlvo = fazendasLayersObj[idFazenda];
-                        if (this.checked) {
-                            camadaADA.addLayer(camadaAlvo);
-                        } else {
-                            camadaADA.removeLayer(camadaAlvo);
-                        }
+                        if (this.checked) { camadaADA.addLayer(camadaAlvo); } 
+                        else { camadaADA.removeLayer(camadaAlvo); }
                     });
                 });
             })
             .catch(err => console.error("Erro ao carregar Fazendas:", err));
 
-        // 3. Lógica do botão global "Exibir Todas as Fazendas"
+        // 3. Controle de Recolher/Expandir o Menu Lateral
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const btnHide = document.getElementById('btn-hide');
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('collapsed');
+        }
+
+        sidebarToggle.addEventListener('click', toggleSidebar);
+        btnHide.addEventListener('click', toggleSidebar);
+
+        // 4. Lógica Global e Pesquisa
         document.getElementById('check-ada-global').addEventListener('change', function() {
             let statusGlobal = this.checked;
             document.querySelectorAll('.check-fazenda-individual').forEach(function(cb) {
                 cb.checked = statusGlobal;
                 let idFazenda = cb.getAttribute('data-fazenda');
                 let camadaAlvo = fazendasLayersObj[idFazenda];
-                if (statusGlobal) {
-                    camadaADA.addLayer(camadaAlvo);
-                } else {
-                    camadaADA.removeLayer(camadaAlvo);
-                }
+                if (statusGlobal) { camadaADA.addLayer(camadaAlvo); } 
+                else { camadaADA.removeLayer(camadaAlvo); }
             });
         });
 
-        // Botões de Atalho: Marcar Todos / Desmarcar Todos
         document.getElementById('btn-marcar-todos').addEventListener('click', function() {
             document.getElementById('check-ada-global').checked = true;
             document.getElementById('check-ada-global').dispatchEvent(new Event('change'));
@@ -161,17 +189,14 @@
             document.getElementById('check-ada-global').dispatchEvent(new Event('change'));
         });
 
-        // 4. Lógica da Barra de Pesquisa por Código
         document.getElementById('search-btn').addEventListener('click', function() {
             var inputValor = document.getElementById('search-box').value.trim();
             if (inputValor === "") { alert("Digite o código da fazenda!"); return; }
 
             if (fazendasLayersObj[inputValor]) {
                 var layerEncontrada = fazendasLayersObj[inputValor];
-                // Garante que a fazenda está visível ao dar zoom
                 if (!camadaADA.hasLayer(layerEncontrada)) {
                     camadaADA.addLayer(layerEncontrada);
-                    // Marca o checkbox dela correspondente
                     document.querySelector(`input[data-fazenda="${inputValor}"]`).checked = true;
                 }
                 map.fitBounds(layerEncontrada.getBounds(), { padding: [50, 50], maxZoom: 16 });
@@ -181,7 +206,6 @@
             }
         });
 
-        // 5. Lógica da AID
         document.getElementById('check-aid').addEventListener('change', function() {
             if(this.checked) map.addLayer(camadaAID); else map.removeLayer(camadaAID);
         });
