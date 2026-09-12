@@ -174,7 +174,7 @@
 
                 camadaGeoJsonFazendas = L.geoJSON(data, {
                     pane: 'pane_ada',
-                    style: { color: 'green', weight: 2, fillOpacity: 0 },
+                    style: { color: 'Breakdown', weight: 2, fillOpacity: 0 },
                     onEachFeature: function (feature, layer) {
                         let props = feature.properties;
                         
@@ -203,7 +203,7 @@
                         divItem.title = "Dê duplo clique para dar zoom na fazenda";
                         divItem.innerHTML = `
                             <input type="checkbox" class="check-fazenda-individual" data-fazenda="${codFazenda}" checked>
-                            <div class="legend-color" style="background: transparent; border-color: green; width: 10px; height: 10px;"></div>
+                            <div class="legend-color" style="background: transparent; border-color: Breakdown; width: 10px; height: 10px;"></div>
                             <span>Fazenda ${codFazenda}</span>
                         `;
 
