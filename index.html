@@ -270,7 +270,7 @@
             .then(data => {
                 var influenciaLayer = L.geoJSON(data, {
                     pane: 'pane_uc',
-                    style: { color: 'pink', weight: 4, fillOpacity: 0 }
+                    style: { color: 'dark green', weight: 4, fillOpacity: 0.5 }
                 }).addTo(camadaUC);
                 map.fitBounds(influenciaLayer.getBounds());
             })
