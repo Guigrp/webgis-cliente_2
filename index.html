@@ -63,7 +63,12 @@
             padding-bottom: 5px;
         }
 
-        .sub-layer-item { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 5px; }
+        .sub-layer-item { 
+            display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 5px; 
+            cursor: pointer; padding: 3px; border-radius: 3px;
+        }
+        .sub-layer-item:hover { background-color: #f0f4f8; }
+        
         .btn-global-container { display: flex; gap: 5px; margin-top: 8px; margin-bottom: 8px; }
         .btn-global { background: #f0f0f0; border: 1px solid #ccc; padding: 3px 8px; font-size: 11px; border-radius: 3px; cursor: pointer; }
         .btn-global:hover { background: #e0e0e0; }
@@ -159,7 +164,6 @@
 
                 camadaGeoJsonFazendas = L.geoJSON(data, {
                     pane: 'pane_ada',
-                    // fillOpacity: 0 remove o preenchimento interno, mantendo apenas a linha de contorno
                     style: { color: 'blue', weight: 2, fillOpacity: 0 },
                     onEachFeature: function (feature, layer) {
                         let props = feature.properties;
@@ -168,7 +172,6 @@
                         let codFazenda = String(props.FAZENDA || props.codigo || props.CODIGO || "Sem código");
                         let areaFazenda = props.AREA || props.area || props.AREA_HA || "Não informada";
 
-                        // Pop-up formatado conforme solicitado
                         let conteudoPopup = `
                             <b>Nome:</b> ${nomeFazenda}<br>
                             <b>Fazenda:</b> ${codFazenda}<br>
@@ -176,7 +179,7 @@
                         `;
                         layer.bindPopup(conteudoPopup);
 
-                        // Zoom por duplo clique na fazenda
+                        // Zoom por duplo clique direto no mapa
                         layer.on('dblclick', function(e) {
                             map.fitBounds(e.target.getBounds(), { padding: [50, 50], maxZoom: 16 });
                             layer.openPopup();
@@ -184,13 +187,35 @@
 
                         fazendasLayersObj[codFazenda] = layer;
 
+                        // Criação do item na lista lateral
                         var divItem = document.createElement('div');
                         divItem.className = 'sub-layer-item';
+                        divItem.title = "Dê duplo clique para dar zoom na fazenda";
                         divItem.innerHTML = `
                             <input type="checkbox" class="check-fazenda-individual" data-fazenda="${codFazenda}" checked>
                             <div class="legend-color" style="background: transparent; border-color: blue; width: 10px; height: 10px;"></div>
                             <span>Fazenda ${codFazenda}</span>
                         `;
+
+                        // Evita conflito para que o clique duplo no texto não altere o checkbox acidentalmente
+                        divItem.querySelector('input').addEventListener('click', function(e) {
+                            e.stopPropagation();
+                        });
+
+                        // Adiciona o evento de duplo clique no item do menu lateral para dar zoom
+                        divItem.addEventListener('dblclick', function(e) {
+                            e.preventDefault();
+                            var camadaAlvo = fazendasLayersObj[codFazenda];
+                            if (camadaAlvo) {
+                                if (!camadaADA.hasLayer(camadaAlvo)) {
+                                    camadaADA.addLayer(camadaAlvo);
+                                    divItem.querySelector('.check-fazenda-individual').checked = true;
+                                }
+                                map.fitBounds(camadaAlvo.getBounds(), { padding: [50, 50], maxZoom: 16 });
+                                camadaAlvo.openPopup();
+                            }
+                        });
+
                         containerSubgrupos.appendChild(divItem);
                     }
                 }).addTo(camadaADA);
