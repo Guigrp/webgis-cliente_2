@@ -80,7 +80,7 @@
 
     <div id="sidebar">
         <div class="header-menu">
-            <h2>Painel do Projeto</h2>
+            <h2>Painel do Projeto Modelo</h2>
             <button class="btn-close-menu" id="btn-hide" title="Recolher Menu">✕</button>
         </div>
 
@@ -255,6 +255,19 @@
             }
         });
 
+        // X. Carrega UCs
+        fetch('dados/CONSERVACAO.geojson')
+            .then(res => res.json())
+            .then(data => {
+                var influenciaLayer = L.geoJSON(data, {
+                    pane: 'pane_uc',
+                    style: { color: 'MediumSeaGreen', weight: 2, fillOpacity: 0.3 }
+                }).addTo(camadaUC);
+                map.fitBounds(influenciaLayer.getBounds());
+            })
+            .catch(err => console.error("Erro ao carregar UC:", err));
+
+        
         // 4. Controle geral do menu lateral (esconder/mostrar painel inteiro)
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebar-toggle');
