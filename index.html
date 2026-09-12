@@ -125,7 +125,7 @@
         <!-- Camada de Conservacao (AID) -->
         <div class="layer-group">
             <strong> UNIDADES DE CONSERVAÇÃO</strong>
-            <label class="layer-item"><input type="checkbox" id="check-conservacao" checked> <div class="legend-color" style="background: rgba(100,255,100,0.9); border-color: dark green;"></div> Unidades de Conservação (UC)</label>
+            <label class="layer-item"><input type="checkbox" id="check-conservacao" checked> <div class="legend-color" style="background: rgba(100,255,100,0.9); border-color: darkgreen;"></div> Unidades de Conservação (UC)</label>
         </div>     
     </div>
 
@@ -270,7 +270,7 @@
             .then(data => {
                 var influenciaLayer = L.geoJSON(data, {
                     pane: 'pane_uc',
-                    style: { color: 'dark green', weight: 4, fillOpacity: 0.5 }
+                    style: { color: 'darkgreen', weight: 4, fillOpacity: 0.5 }
                 }).addTo(camadaUC);
                 map.fitBounds(influenciaLayer.getBounds());
             })
