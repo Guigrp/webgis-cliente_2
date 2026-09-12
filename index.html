@@ -65,15 +65,15 @@
                     style: { color: 'blue', weight: 2, fillOpacity: 0.4 },
                     onEachFeature: function (feature, layer) {
                         // Mude 'codigo' para o nome exato da coluna na sua tabela de atributos do QGIS
-                        let FAZENDA = feature.properties.fazenda || "Sem código"; 
+                        let FAZENDA = feature.properties.FAZENDA || "Sem código aparecendo"; 
                         layer.bindPopup("<b>Fazenda</b><br>Código: " + FAZENDA);
                     }
                 }).addTo(camadaADA);
                 
                 // Dá zoom automático para enquadrar todas as fazendas carregadas (POSSO USAR O COMANDO ABAIXO PARA ELE AO ABRIR CENTRALIZAR NA ADA DO PROJETO)
-                map.fitBounds(fazendasLayer.getBounds());
+                map.fitBounds(influenciaLayer.getBounds());
             })
-            .catch(err => console.error("Erro ao carregar Fazendas:", err));
+            .catch(err => console.error("Erro ao carregar AID:", err));
 
         // 3. Lógica para os botões do menu ligarem/desligarem as camadas
         document.getElementById('check-aid').addEventListener('change', function() {
