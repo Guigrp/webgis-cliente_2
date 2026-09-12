@@ -124,7 +124,7 @@
 
         <!-- Camada de Conservacao (AID) -->
         <div class="layer-group">
-            <strong> UNIDADES DE CONSERVAÇAO</strong>
+            <strong> UNIDADES DE CONSERVAÇÃO</strong>
             <label class="layer-item"><input type="checkbox" id="check-conservacao" checked> <div class="legend-color" style="background: rgba(258,130,238,0); border-color: pink;"></div> Unidades de Conservação (UC)</label>
         </div>     
     </div>
@@ -142,9 +142,13 @@
         map.getPane('pane_aid').style.zIndex = 400;
         map.createPane('pane_ada');
         map.getPane('pane_ada').style.zIndex = 410;
+        map.createPane('pane_uc');
+        map.getPane('pane_uc').style.zIndex = 420;
 
         var camadaAID = L.layerGroup().addTo(map);
         var camadaADA = L.layerGroup().addTo(map);
+        var camadaUC = L.layerGroup().addTo(map);
+
         
         var fazendasLayersObj = {};
         var camadaGeoJsonFazendas;
@@ -259,6 +263,18 @@
         function toggleSidebar() { sidebar.classList.toggle('collapsed'); }
         sidebarToggle.addEventListener('click', toggleSidebar);
         btnHide.addEventListener('click', toggleSidebar);
+
+        // X. Carrega UCs
+        fetch('dados/CONSERVACAO.geojson')
+            .then(res => res.json())
+            .then(data => {
+                var influenciaLayer = L.geoJSON(data, {
+                    pane: 'pane_uc',
+                    style: { color: 'pink', weight: 4, fillOpacity: 0 }
+                }).addTo(camadaUC);
+                map.fitBounds(influenciaLayer.getBounds());
+            })
+            .catch(err => console.error("Erro ao carregar UC:", err));
 
         // 5. Lógica Global e Pesquisa por Código
         document.getElementById('check-ada-global').addEventListener('change', function() {
