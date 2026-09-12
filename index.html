@@ -87,7 +87,7 @@
 
         <!-- Camada de Limites -->
         <div class="layer-group">
-            <strong>LIMITES DO PROJETO ANALISADO</strong>
+            <strong>LIMITES DO PROJETO ANALISADO CATEGORIZADO</strong>
             <label class="layer-item"><input type="checkbox" id="check-aid" checked> <div class="legend-color" style="background: rgba(255,0,0,0.2); border-color: red;"></div> Área de Influência Direta (AID)</label>
         </div>
 
@@ -158,12 +158,9 @@
                     onEachFeature: function (feature, layer) {
                         let codFazenda = String(feature.properties.FAZENDA || "Sem código");
                         layer.bindPopup("<b>Fazenda</b><br>Código: " + codFazenda);
+                        layer.bindPopup("<b>Area</b><br>Área: " + AREA);                        
                         fazendasLayersObj[codFazenda] = layer;
-                        
-                        let AREA = String(feature.properties.AREA || " - ");
-                        layer.bindPopup("<b>AREA</b><br>Área: " + AREA);
-                        fazendasLayersObj[AREA] = layer;
-
+                    
                         var divItem = document.createElement('div');
                         divItem.className = 'sub-layer-item';
                         divItem.innerHTML = `
