@@ -99,7 +99,7 @@
         <!-- Camada de Limites (AID) -->
         <div class="layer-group">
             <strong>LIMITES DO PROJETO ANALISADO</strong>
-            <label class="layer-item"><input type="checkbox" id="check-aid" checked> <div class="legend-color" style="background: rgba(255,0,0,0.2); border-color: red;"></div> Área de Influência Direta (AID)</label>
+            <label class="layer-item"><input type="checkbox" id="check-aid" checked> <div class="legend-color" style="background: rgba(255,0,0,0); border-color: red;"></div> Área de Influência Direta (AID)</label>
         </div>
 
         <!-- Subgrupo Expansível Exclusivo para as Fazendas (ADA) -->
@@ -164,7 +164,7 @@
 
                 camadaGeoJsonFazendas = L.geoJSON(data, {
                     pane: 'pane_ada',
-                    style: { color: 'blue', weight: 2, fillOpacity: 0 },
+                    style: { color: 'green', weight: 2, fillOpacity: 0 },
                     onEachFeature: function (feature, layer) {
                         let props = feature.properties;
                         
@@ -193,7 +193,7 @@
                         divItem.title = "Dê duplo clique para dar zoom na fazenda";
                         divItem.innerHTML = `
                             <input type="checkbox" class="check-fazenda-individual" data-fazenda="${codFazenda}" checked>
-                            <div class="legend-color" style="background: transparent; border-color: blue; width: 10px; height: 10px;"></div>
+                            <div class="legend-color" style="background: transparent; border-color: green; width: 10px; height: 10px;"></div>
                             <span>Fazenda ${codFazenda}</span>
                         `;
 
