@@ -7,21 +7,31 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; }
         #map { height: 100%; width: 100%; z-index: 1; }
-        #sidebar { position: absolute; top: 20px; left: 20px; width: 320px; background: rgba(255, 255, 255, 0.95); padding: 20px; z-index: 1000; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        #sidebar { 
+            position: absolute; top: 20px; left: 20px; width: 340px; max-height: 90vh; 
+            background: rgba(255, 255, 255, 0.95); padding: 20px; z-index: 1000; 
+            border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); overflow-y: auto; 
+        }
         h2 { margin-top: 0; font-size: 18px; color: #333; border-bottom: 2px solid #0078A8; padding-bottom: 10px; }
-        .search-container { display: flex; gap: 5px; margin-bottom: 20px; }
+        .search-container { display: flex; gap: 5px; margin-bottom: 15px; }
         #search-box { flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
         #search-btn { padding: 8px 12px; background: #0078A8; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .layer-group { margin-bottom: 15px; }
+        .layer-group { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         .layer-group strong { display: block; font-size: 13px; color: #555; margin-bottom: 8px; }
         .layer-item { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 5px; }
         .legend-color { width: 14px; height: 14px; border: 1px solid #999; border-radius: 3px; }
+        
+        /* Estilo da árvore de subgrupos de fazendas */
+        #lista-fazendas { margin-top: 5px; padding-left: 15px; border-left: 2px solid #ddd; max-height: 200px; overflow-y: auto; }
+        .sub-layer-item { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 4px; }
+        .btn-global { background: #f0f0f0; border: 1px solid #ccc; padding: 3px 8px; font-size: 11px; border-radius: 3px; cursor: pointer; margin-bottom: 5px; }
+        .btn-global:hover { background: #e0e0e0; }
     </style>
 </head>
 <body>
 
     <div id="sidebar">
-        <h2>Painel do Projeto Modelo</h2>
+        <h2>Painel do Projeto Modelo Categorizado</h2>
         <div class="search-container">
             <input type="text" id="search-box" placeholder="Código da Fazenda (ex: 1003)">
             <button id="search-btn">Buscar</button>
@@ -30,7 +40,22 @@
         <div class="layer-group">
             <strong>LIMITES DO PROJETO ANALISADO</strong>
             <label class="layer-item"><input type="checkbox" id="check-aid" checked> <div class="legend-color" style="background: rgba(255,0,0,0.2); border-color: red;"></div> Área de Influência Direta (AID)</label>
-            <label class="layer-item"><input type="checkbox" id="check-ada" checked> <div class="legend-color" style="background: rgba(0,0,255,0.4); border-color: blue;"></div> Área Diretamente Afetada (ADA)</label>
+        </div>
+
+        <div class="layer-group">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong>FAZENDAS (ADA)</strong>
+                <div>
+                    <button class="btn-global" id="btn-marcar-todos">Marcar Todos</button>
+                    <button class="btn-global" id="btn-desmarcar-todos">Desmarcar</button>
+                </div>
+            </div>
+            <label class="layer-item" style="margin-top: 8px;"><input type="checkbox" id="check-ada-global" checked> <strong>Exibir Todas as Fazendas</strong></label>
+            
+            <!-- Subgrupos gerados dinamicamente baseados no arquivo -->
+            <div id="lista-fazendas">
+                <span style="font-size: 12px; color: #888;">Carregando fazendas...</span>
+            </div>
         </div>
     </div>
 
@@ -38,101 +63,127 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Inicialização do mapa
         var map = L.map('map', { zoomControl: false }).setView([-21.225, -43.767], 10);
         L.control.zoom({ position: 'topright' }).addTo(map);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-        // ==========================================
-        // 1. CONTROLE DE ORDEM DAS CAMADAS (Z-INDEX)
-        // ==========================================
-        // Criamos "painéis". O painel com zIndex maior fica por cima.
+        // Painéis para controle de ordem (Z-index)
         map.createPane('pane_aid');
-        map.getPane('pane_aid').style.zIndex = 400; // Fica por baixo
-
+        map.getPane('pane_aid').style.zIndex = 400;
         map.createPane('pane_ada');
-        map.getPane('pane_ada').style.zIndex = 410; // Fica por cima (Fazendas)
+        map.getPane('pane_ada').style.zIndex = 410;
 
         var camadaAID = L.layerGroup().addTo(map);
         var camadaADA = L.layerGroup().addTo(map);
-
-        // Variável global para armazenar os dados das fazendas e permitir a busca
+        
+        // Objeto para guardar as referências individuais de cada fazenda (para ligar/desligar por ID)
+        var fazendasLayersObj = {};
         var camadaGeoJsonFazendas;
 
-        // ==========================================
-        // 2. CARREGAMENTO DOS DADOS (GEOJSON)
-        // ==========================================
-        // Carrega Área de Influência Direta (AID)
+        // 1. Carrega Área de Influência Direta (AID)
         fetch('dados/influencia.geojson')
             .then(res => res.json())
             .then(data => {
                 var influenciaLayer = L.geoJSON(data, {
-                    pane: 'pane_aid', // Associa ao painel inferior
+                    pane: 'pane_aid',
                     style: { color: 'red', weight: 2, fillOpacity: 0.1 }
                 }).addTo(camadaAID);
-                
-                // Dá o zoom automático para enquadrar a AID ao abrir o mapa
                 map.fitBounds(influenciaLayer.getBounds());
             })
-            .catch(err => console.error("Erro ao carregar Área de Influência:", err));
+            .catch(err => console.error("Erro ao carregar AID:", err));
 
-        // Carrega Área Diretamente Afetada (ADA - Fazendas)
+        // 2. Carrega Fazendas (ADA) e monta o menu lateral automaticamente
         fetch('dados/fazendas.geojson')
             .then(res => res.json())
             .then(data => {
+                var containerSubgrupos = document.getElementById('lista-fazendas');
+                containerSubgrupos.innerHTML = ""; // Limpa o texto de carregando
+
                 camadaGeoJsonFazendas = L.geoJSON(data, {
-                    pane: 'pane_ada', // Associa ao painel superior
+                    pane: 'pane_ada',
                     style: { color: 'blue', weight: 2, fillOpacity: 0.4 },
                     onEachFeature: function (feature, layer) {
-                        let codFazenda = feature.properties.FAZENDA || "Sem código"; 
+                        let codFazenda = String(feature.properties.FAZENDA || "Sem código");
                         layer.bindPopup("<b>Fazenda</b><br>Código: " + codFazenda);
+
+                        // Salva a camada individual no dicionário usando o código como chave
+                        fazendasLayersObj[codFazenda] = layer;
+
+                        // Cria dinamicamente a caixinha (checkbox) de cada fazenda no menu lateral
+                        var divItem = document.createElement('div');
+                        divItem.className = 'sub-layer-item';
+                        divItem.innerHTML = `
+                            <input type="checkbox" class="check-fazenda-individual" data-fazenda="${codFazenda}" checked>
+                            <div class="legend-color" style="background: rgba(0,0,255,0.4); border-color: blue; width: 10px; height: 10px;"></div>
+                            <span>Fazenda ${codFazenda}</span>
+                        `;
+                        containerSubgrupos.appendChild(divItem);
                     }
                 }).addTo(camadaADA);
+
+                // Ativa os eventos dos novos checkboxes gerados dinamicamente
+                document.querySelectorAll('.check-fazenda-individual').forEach(function(checkbox) {
+                    checkbox.addEventListener('change', function() {
+                        let idFazenda = this.getAttribute('data-fazenda');
+                        let camadaAlvo = fazendasLayersObj[idFazenda];
+                        if (this.checked) {
+                            camadaADA.addLayer(camadaAlvo);
+                        } else {
+                            camadaADA.removeLayer(camadaAlvo);
+                        }
+                    });
+                });
             })
             .catch(err => console.error("Erro ao carregar Fazendas:", err));
 
-        // ==========================================
-        // 3. LÓGICA DA BARRA DE PESQUISA
-        // ==========================================
-        document.getElementById('search-btn').addEventListener('click', function() {
-            var inputValor = document.getElementById('search-box').value.trim();
-            
-            if (inputValor === "") {
-                alert("Digite o código da fazenda!");
-                return;
-            }
-
-            var encontrou = false;
-
-            // Percorre todas as fazendas dentro da camada carregada
-            camadaGeoJsonFazendas.eachLayer(function(layer) {
-                // Pega o valor da coluna FAZENDA. Transformamos tudo em texto (String)
-                // para evitar erros caso você digite "1003" e no arquivo esteja como número 1003.
-                var fazendaAtual = String(layer.feature.properties.FAZENDA);
-                
-                if (fazendaAtual === inputValor) {
-                    // Se encontrou, dá o zoom com uma margem (padding) e abre o balão
-                    map.fitBounds(layer.getBounds(), { padding: [50, 50], maxZoom: 16 });
-                    layer.openPopup();
-                    encontrou = true;
+        // 3. Lógica do botão global "Exibir Todas as Fazendas"
+        document.getElementById('check-ada-global').addEventListener('change', function() {
+            let statusGlobal = this.checked;
+            document.querySelectorAll('.check-fazenda-individual').forEach(function(cb) {
+                cb.checked = statusGlobal;
+                let idFazenda = cb.getAttribute('data-fazenda');
+                let camadaAlvo = fazendasLayersObj[idFazenda];
+                if (statusGlobal) {
+                    camadaADA.addLayer(camadaAlvo);
+                } else {
+                    camadaADA.removeLayer(camadaAlvo);
                 }
             });
+        });
 
-            // Se rodou tudo e não achou, avisa o usuário
-            if (!encontrou) {
-                alert("Fazenda " + inputValor + " não encontrada no banco de dados.");
+        // Botões de Atalho: Marcar Todos / Desmarcar Todos
+        document.getElementById('btn-marcar-todos').addEventListener('click', function() {
+            document.getElementById('check-ada-global').checked = true;
+            document.getElementById('check-ada-global').dispatchEvent(new Event('change'));
+        });
+        document.getElementById('btn-desmarcar-todos').addEventListener('click', function() {
+            document.getElementById('check-ada-global').checked = false;
+            document.getElementById('check-ada-global').dispatchEvent(new Event('change'));
+        });
+
+        // 4. Lógica da Barra de Pesquisa por Código
+        document.getElementById('search-btn').addEventListener('click', function() {
+            var inputValor = document.getElementById('search-box').value.trim();
+            if (inputValor === "") { alert("Digite o código da fazenda!"); return; }
+
+            if (fazendasLayersObj[inputValor]) {
+                var layerEncontrada = fazendasLayersObj[inputValor];
+                // Garante que a fazenda está visível ao dar zoom
+                if (!camadaADA.hasLayer(layerEncontrada)) {
+                    camadaADA.addLayer(layerEncontrada);
+                    // Marca o checkbox dela correspondente
+                    document.querySelector(`input[data-fazenda="${inputValor}"]`).checked = true;
+                }
+                map.fitBounds(layerEncontrada.getBounds(), { padding: [50, 50], maxZoom: 16 });
+                layerEncontrada.openPopup();
+            } else {
+                alert("Fazenda " + inputValor + " não encontrada.");
             }
         });
 
-        // ==========================================
-        // 4. LÓGICA DE LIGAR/DESLIGAR NO MENU
-        // ==========================================
+        // 5. Lógica da AID
         document.getElementById('check-aid').addEventListener('change', function() {
             if(this.checked) map.addLayer(camadaAID); else map.removeLayer(camadaAID);
-        });
-
-        document.getElementById('check-ada').addEventListener('change', function() {
-            if(this.checked) map.addLayer(camadaADA); else map.removeLayer(camadaADA);
         });
     </script>
 </body>
