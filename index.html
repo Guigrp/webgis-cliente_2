@@ -21,7 +21,7 @@
 <body>
 
     <div id="sidebar">
-        <h2>Painel do Projeto Modelo 2</h2>
+        <h2>Painel do Projeto Modelo</h2>
         <div class="search-container">
             <input type="text" id="search-box" placeholder="Código da Fazenda (ex: 1003)">
             <button id="search-btn">Buscar</button>
@@ -38,44 +38,95 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Centraliza inicialmente na AID (posteriormente colocar para centralizar na coordenada da AID do projeto)
+        // Inicialização do mapa
         var map = L.map('map', { zoomControl: false }).setView([-21.225, -43.767], 10);
         L.control.zoom({ position: 'topright' }).addTo(map);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-        // Cria os grupos de camadas para permitir ativar/desativar
+        // ==========================================
+        // 1. CONTROLE DE ORDEM DAS CAMADAS (Z-INDEX)
+        // ==========================================
+        // Criamos "painéis". O painel com zIndex maior fica por cima.
+        map.createPane('pane_aid');
+        map.getPane('pane_aid').style.zIndex = 400; // Fica por baixo
+
+        map.createPane('pane_ada');
+        map.getPane('pane_ada').style.zIndex = 410; // Fica por cima (Fazendas)
+
         var camadaAID = L.layerGroup().addTo(map);
         var camadaADA = L.layerGroup().addTo(map);
 
-        // 1. Carrega o GeoJSON da Área de Influência Direta (AID)
+        // Variável global para armazenar os dados das fazendas e permitir a busca
+        var camadaGeoJsonFazendas;
+
+        // ==========================================
+        // 2. CARREGAMENTO DOS DADOS (GEOJSON)
+        // ==========================================
+        // Carrega Área de Influência Direta (AID)
         fetch('dados/influencia.geojson')
             .then(res => res.json())
             .then(data => {
-                L.geoJSON(data, {
+                var influenciaLayer = L.geoJSON(data, {
+                    pane: 'pane_aid', // Associa ao painel inferior
                     style: { color: 'red', weight: 2, fillOpacity: 0.1 }
                 }).addTo(camadaAID);
+                
+                // Dá o zoom automático para enquadrar a AID ao abrir o mapa
+                map.fitBounds(influenciaLayer.getBounds());
             })
             .catch(err => console.error("Erro ao carregar Área de Influência:", err));
 
-        // 2. Carrega o GeoJSON das Fazendas (ADA)
+        // Carrega Área Diretamente Afetada (ADA - Fazendas)
         fetch('dados/fazendas.geojson')
             .then(res => res.json())
             .then(data => {
-                var fazendasLayer = L.geoJSON(data, {
+                camadaGeoJsonFazendas = L.geoJSON(data, {
+                    pane: 'pane_ada', // Associa ao painel superior
                     style: { color: 'blue', weight: 2, fillOpacity: 0.4 },
                     onEachFeature: function (feature, layer) {
-                        // Mude 'codigo' para o nome exato da coluna na sua tabela de atributos do QGIS
-                        let FAZENDA = feature.properties.FAZENDA || "Sem código aparecendo"; 
-                        layer.bindPopup("<b>Fazenda</b><br>Código: " + FAZENDA);
+                        let codFazenda = feature.properties.FAZENDA || "Sem código"; 
+                        layer.bindPopup("<b>Fazenda</b><br>Código: " + codFazenda);
                     }
                 }).addTo(camadaADA);
-                
-                // Dá zoom automático para enquadrar todas as fazendas carregadas (POSSO USAR O COMANDO ABAIXO PARA ELE AO ABRIR CENTRALIZAR NA ADA DO PROJETO)
-                map.fitBounds(influenciaLayer.getBounds());
             })
-            .catch(err => console.error("Erro ao carregar AID:", err));
+            .catch(err => console.error("Erro ao carregar Fazendas:", err));
 
-        // 3. Lógica para os botões do menu ligarem/desligarem as camadas
+        // ==========================================
+        // 3. LÓGICA DA BARRA DE PESQUISA
+        // ==========================================
+        document.getElementById('search-btn').addEventListener('click', function() {
+            var inputValor = document.getElementById('search-box').value.trim();
+            
+            if (inputValor === "") {
+                alert("Digite o código da fazenda!");
+                return;
+            }
+
+            var encontrou = false;
+
+            // Percorre todas as fazendas dentro da camada carregada
+            camadaGeoJsonFazendas.eachLayer(function(layer) {
+                // Pega o valor da coluna FAZENDA. Transformamos tudo em texto (String)
+                // para evitar erros caso você digite "1003" e no arquivo esteja como número 1003.
+                var fazendaAtual = String(layer.feature.properties.FAZENDA);
+                
+                if (fazendaAtual === inputValor) {
+                    // Se encontrou, dá o zoom com uma margem (padding) e abre o balão
+                    map.fitBounds(layer.getBounds(), { padding: [50, 50], maxZoom: 16 });
+                    layer.openPopup();
+                    encontrou = true;
+                }
+            });
+
+            // Se rodou tudo e não achou, avisa o usuário
+            if (!encontrou) {
+                alert("Fazenda " + inputValor + " não encontrada no banco de dados.");
+            }
+        });
+
+        // ==========================================
+        // 4. LÓGICA DE LIGAR/DESLIGAR NO MENU
+        // ==========================================
         document.getElementById('check-aid').addEventListener('change', function() {
             if(this.checked) map.addLayer(camadaAID); else map.removeLayer(camadaAID);
         });
